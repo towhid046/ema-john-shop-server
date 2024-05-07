@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 5000;
@@ -25,11 +25,39 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
 
-    const productsCollection = client.db("emaJohnDB").collection('products');
+    const productsCollection = client.db("emaJohnDB").collection("products");
 
     // get all products:
     app.get("/products", async (req, res) => {
-      const result = await productsCollection.find().toArray();
+      console.log("Pagination: ", req.query);
+      const page = Number(req.query?.page);
+      const size = Number(req.query?.size);
+
+      const result = await productsCollection
+        .find()
+        .skip(page * size)
+        .limit(size)
+        .toArray();
+      res.send(result);
+    });
+
+    // get total product count:
+    app.get("/products-count", async (req, res) => {
+      const count = await productsCollection.estimatedDocumentCount();
+      res.send({ count });
+    });
+
+    // load specific user cart data by Ids
+    app.post("/productsIds", async (req, res) => {
+      const ids = req.body;
+      const productId = ids.map((id) => new ObjectId(id));
+      const query = {
+        _id: {
+          $in: productId,
+        },
+      };
+
+      const result = await productsCollection.find(query).toArray();
       res.send(result);
     });
 
